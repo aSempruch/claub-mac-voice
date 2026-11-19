@@ -102,11 +102,6 @@ enum SayFiles {
             try? files.removeItem(at: parent.appendingPathComponent(name))
         }
         try? files.createDirectory(at: root, withIntermediateDirectories: true)
-        // Before this layout each `say` had a claub-mac-voice-<UUID> directory directly in the temp dir.
-        for name in (try? files.contentsOfDirectory(atPath: temp.path)) ?? []
-        where name.hasPrefix("claub-mac-voice-") && UUID(uuidString: String(name.dropFirst(16))) != nil {
-            try? files.removeItem(at: temp.appendingPathComponent(name))
-        }
     }
 
     static func removeAll() {

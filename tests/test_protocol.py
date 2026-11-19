@@ -452,15 +452,12 @@ async def test_no_speech_in_the_log_and_no_audio_kept():
         stale = say_dir / "999999" / "0BADF00D"  # a server that died mid-sentence (no such pid)
         stale.mkdir(parents=True)
         (stale / "speech.caf").write_bytes(b"caff" + bytes(100))
-        old = Path(tmp) / "claub-mac-voice-6F9619FF-8B86-D011-B42D-00C04FC964FF"  # the layout before
-        old.mkdir()
-        (old / "speech.caf").write_bytes(b"caff")
         s = Server(own=True, tmpdir=tmp)
         s.start()
         try:
             root = say_dir / str(s.process.pid)
             assert root.is_dir()
-            assert not stale.parent.exists() and not old.exists()
+            assert not stale.parent.exists()
             spoken = ["Periwinkle marmosets are quite rare.", "Another quokka sentence follows."]
             async with aiohttp.ClientSession() as http:
                 sentences, _, _ = await tts(http, s, spoken)
