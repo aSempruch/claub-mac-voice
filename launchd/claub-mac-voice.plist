@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  LaunchAgent for claub-mac-voice: starts at login, restarts if it exits.
+  install.sh fills in BINARY, PORT and LOG and loads it; by hand, replace them and run
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/claub-mac-voice.plist
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>claub-mac-voice</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>BINARY</string>
+        <string>--host</string>
+        <string>127.0.0.1</string>
+        <string>--port</string>
+        <string>PORT</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ProcessType</key>
+    <string>Interactive</string>
+    <key>StandardErrorPath</key>
+    <string>LOG</string>
+    <key>StandardOutPath</key>
+    <string>LOG</string>
+</dict>
+</plist>
