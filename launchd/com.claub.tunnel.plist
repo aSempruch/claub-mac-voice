@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  LaunchAgent for the ssh forward the voice link runs through: brings the dev box's port 9420 (Claub's app and
+  its /voice-link) to 127.0.0.1:9420 here. The keepalives make a dead tunnel (the Mac slept, the network
+  changed) exit within about 20 s, and launchd starts it again. It needs ssh to the host without a prompt
+  (BatchMode): a key in the ssh agent or the keychain.
+  install.sh (its tunnel option) fills in @HOST@ and @LOG@ and loads it; by hand, replace them and run
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.claub.tunnel.plist
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.claub.tunnel</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/ssh</string>
+        <string>-N</string>
+        <string>-o</string>
+        <string>ServerAliveInterval=10</string>
+        <string>-o</string>
+        <string>ServerAliveCountMax=2</string>
+        <string>-o</string>
+        <string>ExitOnForwardFailure=yes</string>
+        <string>-o</string>
+        <string>BatchMode=yes</string>
+        <string>-L</string>
+        <string>9420:127.0.0.1:9420</string>
+        <string>@HOST@</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>15</integer>
+    <key>StandardOutPath</key>
+    <string>@LOG@</string>
+    <key>StandardErrorPath</key>
+    <string>@LOG@</string>
+</dict>
+</plist>

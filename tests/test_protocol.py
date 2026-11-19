@@ -89,20 +89,6 @@ class Server:
         return len(out.split())
 
 
-@pytest.fixture(scope="session")
-def server():
-    s = Server()
-    s.start()
-    yield s
-    s.stop()
-
-
-@pytest.fixture
-async def http():
-    async with aiohttp.ClientSession() as session:
-        yield session
-
-
 async def tts(http, server, texts, *, voice=None, stop_after_audio=None):
     """Speak ``texts``; returns [(sentence message, pcm bytes)], first-audio seconds, and the closing frame."""
     query = f"?voice={voice}" if voice else ""

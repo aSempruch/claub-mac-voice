@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  LaunchAgent for the voice link relay (link/claub_voice_link.py): starts at login, restarts if it exits.
+  install.sh (its link option) fills in @UV@, @SCRIPT@, @TOKEN@ and @LOG@ and loads it; by hand, replace them and run
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.claub.voice-link.plist
+  The relay retries on its own while the ssh tunnel or Claub is down; KeepAlive only covers a crash.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.claub.voice-link</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>@UV@</string>
+        <string>run</string>
+        <string>@SCRIPT@</string>
+        <string>--token-file</string>
+        <string>@TOKEN@</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+    <key>StandardOutPath</key>
+    <string>@LOG@</string>
+    <key>StandardErrorPath</key>
+    <string>@LOG@</string>
+</dict>
+</plist>

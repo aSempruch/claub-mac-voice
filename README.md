@@ -53,7 +53,8 @@ Command-line options override the environment. The server logs to stderr.
 ```
 
 `./install.sh 10401` uses another port; `./install.sh uninstall` stops it and removes the LaunchAgent and the
-binary. Run `./install.sh` again after pulling changes. The log is `~/Library/Logs/claub-mac-voice.log`.
+binary (and the voice link's agents, below, if installed). Run `./install.sh` again after pulling changes. The
+log is `~/Library/Logs/claub-mac-voice.log`.
 
 The LaunchAgent is [`launchd/claub-mac-voice.plist`](launchd/claub-mac-voice.plist) (label `claub-mac-voice`,
 `KeepAlive`, `RunAtLoad`, bound to `127.0.0.1`); `install.sh` fills in its `BINARY`, `PORT` and `LOG`
@@ -65,6 +66,58 @@ launchctl kickstart -k gui/$(id -u)/claub-mac-voice        # restart
 launchctl bootout gui/$(id -u)/claub-mac-voice             # stop until the next login
 curl -s http://127.0.0.1:10301/health                      # {"ok":true,"stt":{"state":"ready",...},...}
 ```
+
+## Voice link (for Claub)
+
+When Claub runs on a dev box (an RDE, say) that cannot reach this Mac, the Mac dials in instead: the Mac
+opens an `ssh -L` forward to the dev box, and the relay [`link/claub_voice_link.py`](link/claub_voice_link.py)
+keeps a websocket to Claub's `/voice-link` through it, authenticated with a token Claub made. Claub carries
+each of its voice connections over that link as a stream, and the relay connects each stream to this server
+on `127.0.0.1:10301`. Claub needs `voice_link: {enabled: true}` in its `claub.yaml`. The relay is a
+[uv](https://docs.astral.sh/uv/) script (its one dependency, `aiohttp`, is declared inline);
+[`link/voice_link_wire.py`](link/voice_link_wire.py) is the wire format, a copy of Claub's that must change
+with it. Nothing of Claub needs to be on this Mac.
+
+The relay retries forever with backoff up to 30 s while the tunnel or Claub is down, and logs each change
+once ("Link up", "Link down: ...", "No link to Claub: ..." with the cause, such as a refused token). It notices
+a dead socket by websocket pings and at once when the Mac wakes from sleep.
+
+On the Mac, once the voice server is installed (above) and Claub has started on the dev box:
+
+```bash
+# 1. The token Claub made on the dev box, copied once (a new one is made only if that file is deleted):
+mkdir -p ~/.config/claub
+scp DEVBOX:.claub/data/voice-link.token ~/.config/claub/voice-link.token
+chmod 600 ~/.config/claub/voice-link.token
+
+# 2. The tunnel and the relay, both run at login and restarted by launchd:
+./install.sh --link --tunnel DEVBOX     # --token-file PATH for a token elsewhere
+```
+
+`--tunnel DEVBOX` installs the LaunchAgent `com.claub.tunnel`
+([`launchd/com.claub.tunnel.plist`](launchd/com.claub.tunnel.plist)), which runs
+
+```bash
+ssh -N -o ServerAliveInterval=10 -o ServerAliveCountMax=2 -o ExitOnForwardFailure=yes -o BatchMode=yes \
+    -L 9420:127.0.0.1:9420 DEVBOX
+```
+
+The keepalives make a dead tunnel (the Mac slept, the network changed) exit within about 20 s, and launchd
+starts it again. It needs ssh to `DEVBOX` (any `~/.ssh/config` host) without a prompt: a key in the ssh agent
+or the keychain. The same forward brings Claub's web app to `http://localhost:9420`. If you open the tunnel
+yourself instead, leave `--tunnel` out.
+
+`--link` checks that `uv` is installed and that the token file exists with mode 600, copies the relay to
+`~/.local/share/claub-mac-voice/link/` (so this checkout can move), and installs the LaunchAgent
+`com.claub.voice-link` ([`launchd/com.claub.voice-link.plist`](launchd/com.claub.voice-link.plist)). Both
+options are idempotent: run `git pull && ./install.sh --link` to update the relay. Logs:
+`~/Library/Logs/claub-voice-link.log` and `~/Library/Logs/claub-tunnel.log`. To try the relay in a terminal
+first: `uv run link/claub_voice_link.py --token-file ~/.config/claub/voice-link.token` (`--help` for its
+options: `--url`, default `ws://127.0.0.1:9420/voice-link`, and `--voice`, default `127.0.0.1:10301`).
+
+Privacy: the relay logs the link's state and stream ids only, never what the streams carry (a call's audio
+and transcripts), and keeps aiohttp's own logging at warnings even with `--verbose`. The token stays in its
+file and is sent only to Claub, through the tunnel.
 
 ## Privacy
 
@@ -211,7 +264,9 @@ log and no audio left on disk (after a reply, a hang-up mid-sentence, and the se
 bad requests, recognition of a `say`-generated utterance at 48 kHz stereo (partials before the final, the
 expected words) and 16 kHz mono, stop with no usable audio, 300 bare connects without leaking a socket, the
 request deadline, pings, the connection cap, RFC 6455 violations, and `install.sh` argument checks. Against a
-running server the log checks are skipped.
+running server the log checks are skipped. `tests/test_voice_link.py` runs the voice link relay against a
+fake Claub `/voice-link` (token and subprotocol checked, the real wire): a reply and an utterance go through
+the link to the server, and a wrong token is logged once and retried.
 
 ## Limits
 
